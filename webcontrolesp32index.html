@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incubator Control Panel</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --accent:    #f97316;
+      --accent2:   #3b82f6;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --yellow:    #eab308;
+      --text:      #e6edf3;
+      --muted:     #7d8590;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .conn-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .conn-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .conn-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .conn-dot.offline { background: var(--red); }
+
+    /* ── ESP32 STATUS BANNER ── */
+    .esp-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      transition: all 0.4s;
+    }
+    .esp-banner.online  { background: rgba(34,197,94,0.08);  border-color: rgba(34,197,94,0.3);  color: var(--green); }
+    .esp-banner.offline { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3);  color: var(--red); }
+    .esp-banner.unknown { background: rgba(125,133,144,0.08); border-color: var(--border); color: var(--muted); }
+    .esp-pulse {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .esp-banner.online  .esp-pulse { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.5s infinite; }
+    .esp-banner.offline .esp-pulse { background: var(--red); }
+    .esp-banner.unknown .esp-pulse { background: var(--muted); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    /* ── LAYOUT ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 720px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .card.full { grid-column: 1 / -1; }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-family: var(--mono);
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    /* ── STATUS BESAR ── */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-val {
+      font-family: var(--mono);
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-val.orange { color: var(--accent); }
+    .stat-val.blue   { color: var(--accent2); }
+    .stat-val.green  { color: var(--green); }
+    .stat-unit {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    /* ── DEVICE STATUS ── */
+    .device-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .device-row:last-child { border-bottom: none; }
+    .device-name {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.875rem;
+    }
+    .device-icon {
+      width: 32px; height: 32px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .icon-heater { background: rgba(249,115,22,0.15); }
+    .icon-motor  { background: rgba(59,130,246,0.15); }
+    .pill {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    .pill.on  { background: rgba(34,197,94,0.15); color: var(--green); }
+    .pill.off { background: rgba(125,133,144,0.1); color: var(--muted); }
+
+    /* ── TIMER PROGRESS ── */
+    .motor-timer {
+      margin-top: 8px;
+    }
+    .timer-bar-wrap {
+      height: 6px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 8px 0 4px;
+    }
+    .timer-bar {
+      height: 100%;
+      background: var(--accent2);
+      border-radius: 3px;
+      transition: width 1s linear;
+      width: 0%;
+    }
+    .timer-labels {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    /* ── FORM KONTROL ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 520px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      letter-spacing: 0.05em;
+    }
+    .field input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 1rem;
+      padding: 10px 14px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field .hint {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    /* ── TOMBOL START/STOP ── */
+    .btn-area {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.875rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-start {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-stop {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-stop:hover { border-color: var(--red); color: var(--red); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── CHART SUHU ── */
+    .chart-wrap {
+      position: relative;
+      height: 200px;
+      margin-top: 8px;
+    }
+    canvas { width: 100% !important; }
+
+    /* ── TABEL HISTORIS ── */
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      font-family: var(--mono);
+    }
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+    tr:last-child td { border-bottom: none; }
+    .temp-cell { color: var(--accent); font-weight: 700; }
+    .empty-row { text-align: center; color: var(--muted); padding: 24px; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 0.8rem;
+      font-family: var(--mono);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🥚</div>
+    INCUBATOR CTRL
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <!-- Status ESP32 di header -->
+    <div class="esp-banner unknown" id="esp32Banner">
+      <div class="esp-pulse"></div>
+      <span id="esp32Label">ESP32: Menunggu data...</span>
+    </div>
+    <div class="conn-badge">
+      <div class="conn-dot" id="connDot"></div>
+      <span id="connLabel">Menghubungkan...</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- CARD: STATUS SENSOR -->
+  <div class="card">
+    <div class="card-label">Status Sensor</div>
+
+    <!-- ESP32 status detail di dalam card -->
+    <div class="esp-banner unknown" id="esp32CardBanner" style="margin-bottom:14px">
+      <div class="esp-pulse"></div>
+      <div>
+        <div id="esp32CardLabel">ESP32: Menunggu data...</div>
+        <div id="esp32LastSeen" style="font-size:0.65rem;opacity:0.7;font-weight:400;margin-top:2px"></div>
+      </div>
+    </div>
+
+    <div class="status-grid">
+      <div class="stat-box">
+        <div class="stat-val orange" id="dispSuhu">--</div>
+        <div class="stat-unit">°C / Suhu</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val blue" id="dispTarget">--</div>
+        <div class="stat-unit">°C / Target</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val green" id="dispUpdate">--</div>
+        <div class="stat-unit">Update Terakhir</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD: STATUS PERANGKAT -->
+  <div class="card">
+    <div class="card-label">Status Perangkat</div>
+
+    <div class="device-row">
+      <div class="device-name">
+        <div class="device-icon icon-heater">🔥</div>
+        <div>
+          <div style="font-weight:500">Pemanas</div>
+          <div style="font-size:0.72rem;color:var(--muted)">Pin 16</div>
+        </div>
+      </div>
+      <span class="pill off" id="statusHeater">OFF</span>
+    </div>
+
+    <div class="device-row">
+      <div class="device-name">
+        <div class="device-icon icon-motor">⚙️</div>
+        <div>
+          <div style="font-weight:500">Motor DC</div>
+          <div style="font-size:0.72rem;color:var(--muted)">Pin 17 via L298N</div>
+        </div>
+      </div>
+      <span class="pill off" id="statusMotor">OFF</span>
+    </div>
+
+    <div class="motor-timer" id="motorTimerWrap" style="display:none">
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:12px">Progress Durasi Motor</div>
+      <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timerBar"></div>
+      </div>
+      <div class="timer-labels">
+        <span id="timerElapsed">0m</span>
+        <span id="timerTotal">--</span>
+      </div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-top:4px;font-family:var(--mono)" id="motorCycleInfo"></div>
+    </div>
+  </div>
+
+  <!-- CARD: PANEL KONTROL -->
+  <div class="card full">
+    <div class="card-label">Panel Kontrol</div>
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Suhu Target Pemanas</label>
+        <input type="number" id="inputSuhu" min="20" max="60" value="37" placeholder="37">
+        <span class="hint">°C — Pemanas ON jika suhu di bawah nilai ini</span>
+      </div>
+
+      <div class="field">
+        <label>Kecepatan Motor (0–255 PWM)</label>
+        <input type="number" id="inputPWM" min="0" max="255" value="150" placeholder="150">
+        <span class="hint">0 = berhenti, 255 = kecepatan penuh</span>
+      </div>
+
+      <div class="field">
+        <label>Durasi Motor (jam)</label>
+        <input type="number" id="inputDurasi" min="0" max="24" step="0.5" value="2" placeholder="2">
+        <span class="hint">Siklus: 30 detik ON → 30 detik OFF</span>
+      </div>
+
+      <div class="field" style="justify-content:flex-end">
+        <label style="opacity:0">_</label>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.75rem;color:var(--muted);font-family:var(--mono);line-height:1.6">
+          Siklus motor:<br>
+          🟢 30s hidup → 🔴 30s mati<br>
+          Berulang selama durasi yang diset
+        </div>
+      </div>
+
+    </div>
+
+    <div class="btn-area">
+      <button class="btn btn-start" id="btnStart" onclick="startAlat()">▶ START</button>
+      <button class="btn btn-stop"  id="btnStop"  onclick="stopAlat()" disabled>■ STOP</button>
+    </div>
+  </div>
+
+  <!-- CARD: GRAFIK SUHU -->
+  <div class="card full">
+    <div class="card-label">Grafik Suhu Realtime (Firebase)</div>
+    <div class="chart-wrap">
+      <canvas id="chartSuhu"></canvas>
+    </div>
+  </div>
+
+  <!-- CARD: TABEL HISTORIS -->
+  <div class="card full">
+    <div class="card-label">Data Historis Suhu</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>WAKTU</th>
+            <th>SUHU (°C)</th>
+            <th>STATUS HEATER</th>
+          </tr>
+        </thead>
+        <tbody id="tabelData">
+          <tr><td colspan="3" class="empty-row">Memuat data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, get, query, orderByKey, limitToLast }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── KONFIGURASI FIREBASE ── ganti sesuai project kamu
+  const firebaseConfig = {
+    apiKey: "AIzaSyAHuGNYJFGmHlGd_8aTz-r0hgyFX7lm7VI",
+    databaseURL: "https://incubatorcloud-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "incubatorcloud",
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // ── REFERENSI NODE ──
+  const kontrolRef = ref(db, '/kontrol');
+  const statusRef  = ref(db, '/status');
+  const suhuRef    = ref(db, '/suhu');
+
+  // ── STATE LOKAL ──
+  let running = false;
+  let motorStartEpoch = 0;
+  let motorDurasiMs   = 0;
+  let timerInterval   = null;
+  let chartLabels = [];
+  let chartData   = [];
+
+  // ── INIT CHART ──
+  const ctx = document.getElementById('chartSuhu').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        label: 'Suhu (°C)',
+        data: chartData,
+        borderColor: '#f97316',
+        backgroundColor: 'rgba(249,115,22,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#f97316',
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#7d8590', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#7d8590', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: '#21262d' } }
+      }
+    }
+  });
+
+  // ── KONEKSI STATUS ──
+  function setConn(online) {
+    const dot   = document.getElementById('connDot');
+    const label = document.getElementById('connLabel');
+    dot.className = 'conn-dot ' + (online ? 'online' : 'offline');
+    label.textContent = online ? 'Firebase Terhubung' : 'Terputus';
+  }
+
+  // ── STATUS ESP32 ──
+  let lastTimestamp = 0;
+  const ESP32_TIMEOUT = 70; // detik — jika > 70 detik tidak ada update, dianggap offline
+
+  function setESP32Status(state, lastSeenText) {
+    // state: 'online' | 'offline' | 'unknown'
+    const banner     = document.getElementById('esp32Banner');
+    const bannerCard = document.getElementById('esp32CardBanner');
+    const labelH     = document.getElementById('esp32Label');
+    const labelC     = document.getElementById('esp32CardLabel');
+    const lastSeen   = document.getElementById('esp32LastSeen');
+
+    const labels = {
+      online:  '🟢 ESP32 Online',
+      offline: '🔴 ESP32 Offline',
+      unknown: '⚪ ESP32 Menunggu...',
+    };
+
+    banner.className     = 'esp-banner ' + state;
+    bannerCard.className = 'esp-banner ' + state;
+    labelH.textContent   = labels[state];
+    labelC.textContent   = labels[state];
+    lastSeen.textContent = lastSeenText || '';
+  }
+
+  // Cek ESP32 tiap 5 detik berdasarkan timestamp terakhir
+  setInterval(() => {
+    if (lastTimestamp === 0) return;
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const selisih  = nowEpoch - lastTimestamp;
+    if (selisih <= ESP32_TIMEOUT) {
+      setESP32Status('online', `Update ${selisih}s yang lalu`);
+    } else {
+      const menit = Math.floor(selisih / 60);
+      const detik = selisih % 60;
+      const agoText = menit > 0 ? `${menit}m ${detik}s yang lalu` : `${detik}s yang lalu`;
+      setESP32Status('offline', `Terakhir online: ${agoText}`);
+    }
+  }, 5000);
+
+  // ── LISTEN STATUS dari ESP32 ──
+  onValue(statusRef, snap => {
+    setConn(true);
+    const d = snap.val();
+    if (!d) return;
+
+    // Suhu aktual
+    if (d.suhu !== undefined) {
+      document.getElementById('dispSuhu').textContent = Number(d.suhu).toFixed(1);
+    }
+    // Heater
+    const heaterOn = d.heater == 1 || d.heater === true;
+    const elH = document.getElementById('statusHeater');
+    elH.textContent = heaterOn ? 'ON' : 'OFF';
+    elH.className   = 'pill ' + (heaterOn ? 'on' : 'off');
+
+    // Motor
+    const motorOn = d.motor == 1 || d.motor === true;
+    const elM = document.getElementById('statusMotor');
+    elM.textContent = motorOn ? 'ON' : 'OFF';
+    elM.className   = 'pill ' + (motorOn ? 'on' : 'off');
+
+    // Update timestamp + status ESP32
+    if (d.timestamp) {
+      lastTimestamp = d.timestamp;
+      const t = new Date(d.timestamp * 1000);
+      const jam  = t.getHours().toString().padStart(2,'0');
+      const mnt  = t.getMinutes().toString().padStart(2,'0');
+      const dtk  = t.getSeconds().toString().padStart(2,'0');
+      document.getElementById('dispUpdate').textContent = `${jam}:${mnt}:${dtk}`;
+
+      // Langsung evaluasi status saat data masuk
+      const selisih = Math.floor(Date.now() / 1000) - lastTimestamp;
+      if (selisih <= ESP32_TIMEOUT) {
+        setESP32Status('online', `Update ${selisih}s yang lalu`);
+      } else {
+        setESP32Status('offline', `Terakhir online: ${jam}:${mnt}:${dtk}`);
+      }
+    }
+  }, err => { setConn(false); setESP32Status('offline', 'Koneksi Firebase terputus'); console.error(err); });
+
+  // ── LISTEN /kontrol untuk sinkronisasi state web ──
+  onValue(kontrolRef, snap => {
+    const k = snap.val();
+    if (!k) return;
+    if (k.target !== undefined) document.getElementById('dispTarget').textContent = k.target;
+    if (k.aktif !== undefined) {
+      running = k.aktif == 1 || k.aktif === true;
+      syncBtnState();
+      if (running && k.motorStartEpoch) {
+        motorStartEpoch = k.motorStartEpoch;
+        motorDurasiMs   = (k.durasiJam || 0) * 3600000;
+        startTimerUI();
+      } else if (!running) {
+        stopTimerUI();
+      }
+    }
+  });
+
+  // ── LISTEN /suhu untuk grafik & tabel ──
+  const suhuQuery = query(suhuRef, orderByKey(), limitToLast(20));
+  onValue(suhuQuery, snap => {
+    const raw = snap.val();
+    if (!raw) return;
+
+    chartLabels.length = 0;
+    chartData.length   = 0;
+    const rows = [];
+
+    Object.entries(raw).sort((a,b) => a[0].localeCompare(b[0])).forEach(([key, val]) => {
+      const suhu   = val.suhu ?? val;
+      const w      = val.waktu;
+      const label  = w ? `${w.jam}:${String(w.menit).padStart(2,'0')}` : key.slice(-5);
+      const tgl    = w ? `${w.tanggal}/${w.bulan}/${w.tahun} ${w.jam}:${String(w.menit).padStart(2,'0')}` : key;
+      chartLabels.push(label);
+      chartData.push(Number(suhu).toFixed(1));
+      rows.push({ tgl, suhu });
+    });
+
+    chart.update();
+
+    // Update tabel (urutan terbaru di atas)
+    const tbody = document.getElementById('tabelData');
+    tbody.innerHTML = '';
+    rows.reverse().forEach(r => {
+      const target = parseFloat(document.getElementById('inputSuhu').value) || 0;
+      const heaterStat = r.suhu < target ? '<span style="color:var(--accent)">ON</span>' : '<span style="color:var(--muted)">OFF</span>';
+      tbody.innerHTML += `<tr>
+        <td>${r.tgl}</td>
+        <td class="temp-cell">${r.suhu}</td>
+        <td>${heaterStat}</td>
+      </tr>`;
+    });
+  });
+
+  // ── START ALAT ──
+  window.startAlat = function() {
+    const suhu    = parseFloat(document.getElementById('inputSuhu').value);
+    const pwm     = parseInt(document.getElementById('inputPWM').value);
+    const durasi  = parseFloat(document.getElementById('inputDurasi').value);
+
+    if (isNaN(suhu) || isNaN(pwm) || isNaN(durasi)) {
+      showToast('Lengkapi semua inputan terlebih dahulu', 'error'); return;
+    }
+    if (pwm < 0 || pwm > 255) {
+      showToast('PWM harus antara 0–255', 'error'); return;
+    }
+    if (durasi <= 0) {
+      showToast('Durasi motor harus lebih dari 0', 'error'); return;
+    }
+
+    const nowEpoch = Math.floor(Date.now() / 1000);
+
+    set(kontrolRef, {
+      aktif:          1,
+      target:         suhu,
+      pwmMotor:       pwm,
+      durasiJam:      durasi,
+      motorStartEpoch: nowEpoch,
+    }).then(() => {
+      showToast('✅ Perintah START dikirim ke ESP32', 'success');
+    }).catch(e => showToast('❌ Gagal: ' + e.message, 'error'));
+  };
+
+  // ── STOP ALAT ──
+  window.stopAlat = function() {
+    set(kontrolRef, { aktif: 0 })
+      .then(() => showToast('■ Perintah STOP dikirim', 'success'))
+      .catch(e => showToast('❌ Gagal: ' + e.message, 'error'));
+  };
+
+  // ── SINKRON TOMBOL ──
+  function syncBtnState() {
+    document.getElementById('btnStart').disabled = running;
+    document.getElementById('btnStop').disabled  = !running;
+    ['inputSuhu','inputPWM','inputDurasi'].forEach(id => {
+      document.getElementById(id).disabled = running;
+    });
+  }
+
+  // ── TIMER PROGRESS UI ──
+  function startTimerUI() {
+    document.getElementById('motorTimerWrap').style.display = 'block';
+    document.getElementById('timerTotal').textContent =
+      (motorDurasiMs / 3600000).toFixed(1) + ' jam';
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      const elapsedMs = Date.now() - (motorStartEpoch * 1000);
+      const pct = Math.min(100, (elapsedMs / motorDurasiMs) * 100);
+      document.getElementById('timerBar').style.width = pct + '%';
+
+      const sisaMs = Math.max(0, motorDurasiMs - elapsedMs);
+      const sisaMnt = Math.floor(sisaMs / 60000);
+      const sisaDetik = Math.floor((sisaMs % 60000) / 1000);
+      document.getElementById('timerElapsed').textContent =
+        `Sisa: ${sisaMnt}m ${sisaDetik}s`;
+
+      // Siklus 30s ON / 30s OFF
+      const cyclePos = Math.floor(elapsedMs / 1000) % 60;
+      const faseMotor = cyclePos < 30 ? '🟢 Motor ON' : '🔴 Motor OFF';
+      const sisaSiklus = cyclePos < 30 ? 30 - cyclePos : 60 - cyclePos;
+      document.getElementById('motorCycleInfo').textContent =
+        `${faseMotor} — ganti fase dalam ${sisaSiklus}s`;
+
+      if (elapsedMs >= motorDurasiMs) {
+        clearInterval(timerInterval);
+        document.getElementById('motorCycleInfo').textContent = '✅ Durasi motor selesai';
+      }
+    }, 1000);
+  }
+
+  function stopTimerUI() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('motorTimerWrap').style.display = 'none';
+    document.getElementById('timerBar').style.width = '0%';
+  }
+
+  // ── TOAST ──
+  window.showToast = function(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + type;
+    setTimeout(() => { el.className = ''; }, 3000);
+  };
+</script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+</body>
+</html>
